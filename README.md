@@ -28,7 +28,7 @@ To use this app, you need free API keys from Last.fm and Genius.
 If you want to run from source or modify the code:
 1. Clone the repo.
 2. `pip install -r requirements.txt`
-3. Run `python app.pyw`
+3. Run `python lyrics.pyw`
 
 To build the executable yourself:
-`pyinstaller --noconsole --onefile app.pyw`
+`pyinstaller --noconsole --onefile --icon=icon.ico --add-data "icon.ico;." lyrics.pyw`

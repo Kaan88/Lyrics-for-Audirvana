@@ -6,8 +6,30 @@ import threading
 import time
 import json
 import os
+import sys
+import re
 
 CONFIG_FILE = "config.json"
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+def clean_title(title):
+    """ Strips out metadata that breaks lyrics APIs """
+    # 1. Remove anything inside () or []
+    title = re.sub(r'[\(\[].*?[\)\]]', '', title)
+    # 2. Chop off common suffixes after a hyphen
+    title = re.sub(r'\s*-\s*(Remaster|Live|Mono|Stereo|Acoustic|Bonus|Instrumental|Radio Edit).*', '', title, flags=re.IGNORECASE)
+    # 3. Chop off features
+    title = re.sub(r'\s+(feat\.|ft\.).*', '', title, flags=re.IGNORECASE)
+    # 4. Clean up double spaces and trim edges
+    title = re.sub(r'\s+', ' ', title).strip()
+    return title
 
 class SettingsWindow(ctk.CTkToplevel):
     def __init__(self, parent):
@@ -16,14 +38,11 @@ class SettingsWindow(ctk.CTkToplevel):
         self.geometry("400x350")
         self.parent = parent
         
-        # Bring to front
         self.transient(parent)
         self.grab_set()
 
-        try:
-            self.iconbitmap("icon.ico")
-        except Exception:
-            pass
+        try: self.iconbitmap(resource_path("icon.ico"))
+        except Exception: pass
 
         self.create_widgets()
         self.load_current_settings()
@@ -78,11 +97,8 @@ class LyricsApp(ctk.CTk):
         self.geometry("500x700")
         self.minsize(350, 550)
         
-        # Load the custom window icon safely
-        try:
-            self.iconbitmap("icon.ico")
-        except Exception:
-            pass # Fails silently if icon.ico is missing
+        try: self.iconbitmap(resource_path("icon.ico"))
+        except Exception: pass
         
         self.current_provider = "Genius"
         self.lyrics_cache = {}
@@ -92,7 +108,6 @@ class LyricsApp(ctk.CTk):
         self.setup_apis()
         self.build_ui()
 
-        # Start background poller
         self.poll_thread = threading.Thread(target=self.poll_lastfm, daemon=True)
         self.poll_thread.start()
 
@@ -120,7 +135,6 @@ class LyricsApp(ctk.CTk):
             print(f"API Setup Error: {e}")
 
     def build_ui(self):
-        # 1. Top Bar (Settings & Sync Toggle)
         top_bar = ctk.CTkFrame(self, fg_color="transparent")
         top_bar.pack(fill="x", padx=15, pady=(10, 0))
         
@@ -129,7 +143,6 @@ class LyricsApp(ctk.CTk):
         ctk.CTkButton(top_bar, text="⚙ Settings", width=80, fg_color="#333333", hover_color="#222222", 
                       command=self.open_settings).pack(side="right")
 
-        # 2. Search Inputs (Editable Fields)
         search_frame = ctk.CTkFrame(self, fg_color="#2b2b2b")
         search_frame.pack(fill="x", padx=15, pady=15)
 
@@ -142,13 +155,11 @@ class LyricsApp(ctk.CTk):
         ctk.CTkButton(search_frame, text="Search Lyrics", fg_color="#555555", hover_color="#444444", 
                       command=self.manual_search).pack(pady=(0, 10))
 
-        # 3. Lyrics Text Box
         self.textbox = ctk.CTkTextbox(self, font=("Helvetica", 14), wrap="word", fg_color="#252525", text_color="#d4d4d4")
         self.textbox.pack(expand=True, fill="both", padx=15, pady=5)
-        self.textbox.insert("0.0", "Enter API keys in Settings, then play a song in Audirvana or search manually.")
+        self.textbox.insert("0.0", "Enter API keys in Settings, then play a song or search manually.")
         self.textbox.configure(state="disabled")
 
-        # 4. Provider Buttons
         self.button_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.button_frame.pack(pady=15)
 
@@ -173,7 +184,7 @@ class LyricsApp(ctk.CTk):
         SettingsWindow(self)
 
     def manual_search(self):
-        self.auto_sync.set(False) # Turn off auto-sync when searching manually
+        self.auto_sync.set(False)
         artist = self.artist_entry.get().strip()
         title = self.title_entry.get().strip()
         if artist and title:
@@ -204,12 +215,15 @@ class LyricsApp(ctk.CTk):
                         if song_id != current_playing_id:
                             current_playing_id = song_id
                             
-                            self.after(0, self.update_entries, artist, title)
+                            # Clean the title right here before the UI sees it
+                            clean_display_title = clean_title(title)
+                            
+                            self.after(0, self.update_entries, artist, clean_display_title)
                             self.after(0, self.update_lyrics_ui, "Loading lyrics...")
                             
                             self.fetch_and_display_lyrics(artist, title)
                 except Exception:
-                    pass # Silently ignore network blips
+                    pass 
             time.sleep(5)
 
     def update_entries(self, artist, title):
@@ -225,22 +239,28 @@ class LyricsApp(ctk.CTk):
             return
 
         lyrics = "Lyrics not found on this provider. Try another one!"
+        
+        # Apply the regex sanitizer before sending to APIs
+        search_title = clean_title(title)
 
         if self.current_provider == "Genius" and self.genius:
             try:
-                song = self.genius.search_song(title, artist)
+                song = self.genius.search_song(search_title, artist)
                 if song: lyrics = song.lyrics.replace("Embed", "") 
             except Exception:
                 lyrics = "Error connecting to Genius API."
 
         elif self.current_provider == "LRCLIB":
             try:
-                response = requests.get(f"https://lrclib.net/api/get?artist_name={artist}&track_name={title}")
+                headers = {"User-Agent": "LyricsForAudirvana/1.0"}
+                params = {"artist_name": artist, "track_name": search_title}
+                response = requests.get("https://lrclib.net/api/get", params=params, headers=headers, timeout=5)
+                
                 if response.status_code == 200:
                     data = response.json()
                     lyrics = data.get("plainLyrics") or data.get("syncedLyrics") or lyrics
             except Exception:
-                 lyrics = "Error connecting to LRCLIB."
+                 lyrics = "Error connecting to LRCLIB API."
 
         self.lyrics_cache[cache_key] = lyrics
         self.after(0, self.update_lyrics_ui, lyrics)
