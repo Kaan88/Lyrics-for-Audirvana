@@ -111,6 +111,14 @@ class LyricsApp(ctk.CTk):
     def setup_apis(self):
         self.user = None; self.genius = None
         try:
+            # macOS: Python doesn't use the system keychain, so point requests/pylast
+            # at certifi's CA bundle to prevent silent HTTPS failures.
+            try:
+                import certifi, os
+                os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+                os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
+            except ImportError:
+                pass
             if all(k in self.config for k in ("LASTFM_API_KEY", "LASTFM_API_SECRET", "LASTFM_USERNAME")):
                 network = pylast.LastFMNetwork(api_key=self.config["LASTFM_API_KEY"], api_secret=self.config["LASTFM_API_SECRET"])
                 self.user = network.get_user(self.config["LASTFM_USERNAME"])

@@ -29,7 +29,7 @@ jobs:
 
       - name: Build Windows executable
         run: |
-          pyinstaller --onefile lyrics_for_audirvana.py
+          pyinstaller --noconsole --onefile --icon=icon.ico --add-data "icon.ico;." --copy-metadata pylast lyrics.pyw
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -57,12 +57,12 @@ jobs:
 
       - name: Build Universal macOS binary
         run: |
-          pyinstaller --onefile --target-arch universal2 lyrics_for_audirvana.py
+          pyinstaller --noconsole --onefile --target-arch universal2 --add-data "icon.ico:." --copy-metadata pylast lyrics.pyw
 
       - name: Zip mac binary
         run: |
           cd dist
-          zip Lyrics-for-Audirvana-mac.zip lyrics_for_audirvana
+          zip Lyrics-for-Audirvana-mac.zip lyrics
 
       - name: Upload mac artifact
         uses: actions/upload-artifact@v4
