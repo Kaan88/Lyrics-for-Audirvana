@@ -1,0 +1,68 @@
+name: Build Binaries
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+
+  windows-build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller
+          if (Test-Path requirements.txt) { pip install -r requirements.txt }
+
+      - name: Build Windows executable
+        run: |
+          pyinstaller --onefile lyrics_for_audirvana.py
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binary
+          path: dist/*
+
+
+  macos-build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Build Universal macOS binary
+        run: |
+          pyinstaller --onefile --target-arch universal2 lyrics_for_audirvana.py
+
+      - name: Zip mac binary
+        run: |
+          cd dist
+          zip Lyrics-for-Audirvana-mac.zip lyrics_for_audirvana
+
+      - name: Upload mac artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-binary
+          path: dist/Lyrics-for-Audirvana-mac.zip
