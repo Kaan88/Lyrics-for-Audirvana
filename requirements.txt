@@ -1,5 +1,7 @@
 customtkinter==5.2.2
-pylast==5.2.0
+pylast==7.0.1
 lyricsgenius==3.0.1
-requests==2.31.0
+requests>=2.31.0
 certifi
+uiautomation
+Pillow

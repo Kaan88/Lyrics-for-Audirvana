@@ -1,46 +1,87 @@
 
-# Audirvana Lyrics Viewer (Synced)
+# Audirvana Lyrics Viewer
 
 **This app was vibe coded and I'm not a dev.**
 
-A minimalist, high-fidelity lyrics companion for **Audirvana (Windows)**. Since Audirvana does not natively support Windows Media Controls (SMTC), this app uses a "Best Guess" sync engine by polling your **Last.fm** "Now Playing" status and matching it with **LRCLIB** and **Genius** databases.
+A minimalist, high-fidelity lyrics companion for **Audirvana Studio (Windows)**. Reads playback position directly from the Audirvana UI for frame-accurate sync — no timing guesses, no offsets needed.
 
-![App Screenshot](screenshot.png)
+[![App Screenshot](screenshot.png)](screenshot.png)
+
+---
 
 ## ✨ Features
 
-* **Karaoke Mode:** Smoothly glides the active lyric line to the vertical center of the screen with a high-contrast "glowing" effect.
-* **Dual Providers:** Prioritizes **LRCLIB** for perfectly timed `.lrc` data, with **Genius** as a fallback for obscure tracks.
-* **Click-to-Sync:** Is the timing off? Simply click the lyric line that *should* be playing, and the app instantly snaps the internal clock to that position.
-* **Manual Nudging:** Precision controls (`-0.5s` / `+0.5s`) located right above the provider buttons to account for Last.fm API latency in real-time.
-* **Smart Sanitizer:** Automatically strips audiophile metadata (e.g., `(2015 Remaster)`, `[DSD64]`, `[PCM]`, `feat.`) for higher search accuracy.
-* **Scroll-Lock:** Manual scrolling pauses the auto-centering for 3 seconds, allowing you to browse the song without the UI fighting you.
-* **Static Mode:** Toggle sync off to shrink the font and browse lyrics like a traditional document.
-* **Center Justification:** Lyrics are perfectly centered for a professional, distraction-free aesthetic.
+- **Exact sync** — reads the playback clock directly from Audirvana's UI via Windows Accessibility (UIA), so lyrics are always in the right place regardless of Last.fm latency.
+- **Dual providers** — prioritizes **LRCLIB** for perfectly timed `.lrc` data, falls back to **Genius**
+- **Click-to-sync** — click any lyric line to instantly snap the sync to that position.
+- **Nudge buttons** — ±0.25s fine-tuning if you need it.
+- **Artist and Album art** Hover to view fullsize.
+- **Static mode** — toggle sync off to easily read lyrics as a whole.
+- **Fuzzy matching** — if LRCLIB can't find an exact match, it suggests the closest result with a confirmation popup.
+- **LRC cache** — recently fetched lyrics are cached in memory so provider switching is instant.
+- **Smart title cleaner** — strips remaster tags, vinyl side markers, feat. credits for better search accuracy.
+- **Fully configurable** — fonts, colours, sizes, polling intervals, fuzzy threshold all adjustable in Settings.
+
+---
 
 ## 🚀 Getting Started
 
-### 1. Requirements
-* A **Last.fm** account (with scrobbling enabled within Audirvana).
-* **API Keys:** You will need a Last.fm API key/secret and a Genius Access Token (available for free at their respective developer portals).
+### Requirements
 
-### 2. Setup
-1. Run `lyrics.exe`.
-2. Click the **⚙ (Gear)** icon to open settings.
-3. Enter your Last.fm Username, API Key, and Secret.
-4. Set your **Default Sync Offset** (suggested: `-3.0` to account for the standard Last.fm delay).
-5. Click **Save & Reload**.
+- **Windows** (UIA screen reading is Windows-only)
+- A **Last.fm** account with scrobbling enabled in Audirvana
+- Last.fm API key + secret — [get them here](https://www.last.fm/api/account/create)
+- Genius Access Token (optional, for unsynced lyrics fallback) — [get it here](https://genius.com/api-clients)
 
-### 3. Usage
-The app will automatically detect your music as long as it is being scrobbled to Last.fm.
-* **Auto-Sync Switch:** Toggle this to pause/resume tracking your player (useful for manual searches).
-* **Disable/Enable Sync:** Switches between the large-font Karaoke view and the smaller-font Static Reading view.
-* **Nudge Buttons:** Fine-tune the timing on the fly if the Last.fm API is lagging.
-* **Clicking Lyrics:** Changes the mouse to a hand cursor; clicking any line recalibrates the timer to that specific line immediately.
+### Installation
 
-## 🛠 Compilation (For Developers)
+```
+pip install -r requirements.txt
+python lyrics.pyw
+```
 
-If you are building from source, use **PyInstaller** to create the standalone executable. Ensure you have your `icon.ico` in the root folder:
+### Setup
 
-```bash
-pyinstaller --noconsole --onefile --icon=icon.ico --add-data "icon.ico;." lyrics.pyw
+1. Click **⚙** to open Settings.
+2. Enter your Last.fm Username, API Key, and Secret.
+3. Optionally add your Genius Access Token.
+4. Click **Save & Apply**.
+
+The app will detect what's playing in Audirvana automatically. The default sync offset is `0.0` — you shouldn't need to change it.
+
+---
+
+## 🎛 Usage
+
+| Control | What it does |
+|---|---|
+| **Auto-Sync Player** switch | Enables/disables automatic Last.fm track detection |
+| **Search / Restart** button | Manually search by artist + title (doesn't disable auto-sync) |
+| **Click a lyric line** | Snaps sync to that line |
+| **−0.25s / +0.25s** | Fine-tune timing on the fly |
+| **Reset** | Clears manual nudge |
+| **LRCLIB / Genius** buttons | Switch lyrics provider |
+| **Disable/Enable Sync** | Toggles between karaoke and static reading mode |
+
+---
+
+## 🛠 Building from Source
+
+```
+pip install pyinstaller
+pyinstaller lyrics.spec
+```
+
+The included `lyrics.spec` handles all the necessary options (CustomTkinter data files, UPX compression, excludes).
+
+---
+
+## How Sync Works
+
+Audirvana Studio exposes its playback clock as accessible text elements in the Windows UI tree. This app reads those elements every 0.5 seconds (configurable) and interpolates between whole-second ticks for sub-second accuracy. Last.fm is only used for song-change detection — it plays no role in timing.
+
+---
+
+## License
+
+MIT
